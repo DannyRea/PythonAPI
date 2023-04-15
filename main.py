@@ -6,7 +6,7 @@ from sql_app.models import Base
 from sql_app.database import Base, SessionLocal, engine
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
-from nasa.main import get_apod
+from nasa.main import apod, mars_rover_photos
 app = FastAPI()
 origins = ["*"]
 
@@ -89,7 +89,12 @@ def patch_note(id: str, note: schemas.NotePatch,  db: Session = Depends(get_db))
 
 @app.get("/apod")
 def get_apod_image():
-    return get_apod()
+    return apod()
+
+
+@app.get("/mars-rover-photos")
+def get_mars_rover_photos():
+    return mars_rover_photos()
 
 
 # @app.patch("/notes/{id}", response_model=schemas.NotePatch)
