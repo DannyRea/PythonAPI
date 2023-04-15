@@ -3,11 +3,10 @@ from sqlalchemy.orm import Session
 import asyncio
 from sql_app import schemas, crud
 from sql_app.models import Base
-from sql_app.database import Base, SessionLocal , engine
+from sql_app.database import Base, SessionLocal, engine
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
-
-
+from nasa.main import get_apod
 app = FastAPI()
 origins = ["*"]
 
@@ -30,9 +29,12 @@ def get_db():
     finally:
         db.close()
 
+
 @app.get("/")
 async def root():
-    return {"message":"Hello World"}
+    return {"message": "Hello World"}
+
+
 @app.post("/users", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
@@ -54,9 +56,11 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
+
 @app.get("/notes", response_model=list[schemas.NoteGet])
 def read_notes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_notes(db, skip=skip, limit=limit)
+
 
 @app.get("/notes/{id}", response_model=schemas.NoteGet)
 def read_note(id: int, db: Session = Depends(get_db)):
@@ -65,10 +69,12 @@ def read_note(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return db_note
 
+
 @app.post("/notes", response_model=schemas.NoteCreate)
 def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
     response = crud.create_note(db=db, note=note)
     return response
+
 
 @app.patch("/notes/{id}", response_model=schemas.NotePatch)
 def patch_note(id: str, note: schemas.NotePatch,  db: Session = Depends(get_db)):
@@ -77,10 +83,13 @@ def patch_note(id: str, note: schemas.NotePatch,  db: Session = Depends(get_db))
 
     update_data = note.dict()
     stored_note_data.id = update_data
-    
+
     return update_data
 
 
+@app.get("/apod")
+def get_apod_image():
+    return get_apod()
 
 
 # @app.patch("/notes/{id}", response_model=schemas.NotePatch)
