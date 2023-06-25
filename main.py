@@ -7,6 +7,7 @@ from sql_app.database import Base, SessionLocal, engine
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 from nasa.main import apod, mars_rover_photos
+from meal.main import random_meal
 app = FastAPI()
 origins = ["*"]
 
@@ -95,6 +96,11 @@ def get_apod_image():
 @app.get("/mars-rover-photos")
 def get_mars_rover_photos():
     return mars_rover_photos()
+
+
+@app.get("/random-recipe")
+def get_random_recipe():
+    return random_meal()
 
 
 # @app.patch("/notes/{id}", response_model=schemas.NotePatch)

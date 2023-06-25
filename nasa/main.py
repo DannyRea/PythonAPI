@@ -12,10 +12,10 @@ nasa_api_key = settings.settings.NASA_OPEN_API_KEY
 def apod():
     r = requests.get(
         "https://api.nasa.gov/planetary/apod?api_key={}".format(nasa_api_key), stream=True)
-    print(r.text)
-    data = json.loads(r.text)
+    if r.text:
+        data = json.loads(r.text)
 
-    return {"url": data['url'], "explanation": data['explanation'], "date": data["date"]}
+        return {"url": data['url'], "explanation": data['explanation'], "date": data["date"]}
 
 
 def mars_rover_photos():
