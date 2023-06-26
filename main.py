@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 from nasa.main import apod, mars_rover_photos
 from meal.main import random_meal
+
 app = FastAPI()
 origins = ["*"]
 
@@ -78,7 +79,7 @@ def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
 
 
 @app.patch("/notes/{id}", response_model=schemas.NotePatch)
-def patch_note(id: str, note: schemas.NotePatch,  db: Session = Depends(get_db)):
+def patch_note(id: str, note: schemas.NotePatch, db: Session = Depends(get_db)):
     print("here")
     stored_note_data = crud.get_note(db=db, id=id)
 
@@ -99,10 +100,20 @@ def get_mars_rover_photos():
 
 
 @app.get("/random-recipe")
-def get_random_recipe():
-    return random_meal()
+def get_random_recipe(db:Session = Depends(get_db)):
+    random_recipe = random_meal()
+    print(random_recipe)
+    db_recipe = crud.get_recipe(db=db, recipe=random_recipe)
+   
+    if not db_recipe:
+        db_recipe = crud.create_recipe(db, random_recipe)
+    return random_recipe
 
 
+@app.post("/random-recipe", response_model=schemas.RecipeCreate)
+async def create_recipe(recipe: schemas.RecipeCreate, db:Session = Depends(get_db)):
+    db_recipe = await crud.create_recipe(db=db, recipe=recipe)
+    return db_recipe
 # @app.patch("/notes/{id}", response_model=schemas.NotePatch)
 # def patch_note(id: int, note: schemas.NotePatch):
 #     stored_data = note.dict()

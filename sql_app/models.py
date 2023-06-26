@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -23,3 +23,19 @@ class Note(Base):
     removed = Column(String(10), default='1970-01-01')
     x = Column(Integer, nullable=False)
     y = Column(Integer, nullable=False)
+
+class Recipe(Base):
+    __tablename__ = "recipe"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recipeId = Column(Integer, unique=True,  index=True)
+    recipeName = Column(String(50))
+    recipeUrl = Column(String(250))
+    recipeImgUrl = Column(String(250))
+    recipeVideoUrl = Column(String(250))
+    ingredients = Column(Text)
+    measurements = Column(Text)
+    directions = Column(Text)
+
+
+

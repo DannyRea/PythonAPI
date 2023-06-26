@@ -9,6 +9,10 @@ class NoteBase(BaseModel):
     
     removed: str
 
+class RecipeBase(BaseModel):
+    
+    recipeId: int
+
 
 class NoteGet(NoteBase):
     id: int
@@ -18,6 +22,16 @@ class NoteGet(NoteBase):
     y: int
     class Config:
         orm_mode = True
+
+class RecipeGet(RecipeBase):
+    recipeUrl: str
+    recipeName:str
+    recipeImgUrl: str
+    recipyVideoUrl: str
+    ingredients: str
+    measurements: str
+    directions: str
+
 
 
 class UserCreate(UserBase):
@@ -49,7 +63,14 @@ class NotePatch(NoteBase):
     cardBody: str
     x: int
     y: int
-
+class RecipeCreate(RecipeBase):
+    recipeUrl: str
+    recipeName:str
+    recipeImgUrl: str
+    recipyVideoUrl: str
+    ingredients: str
+    measurements: str
+    directions: str
 
 
 
