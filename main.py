@@ -98,6 +98,9 @@ def get_apod_image():
 def get_mars_rover_photos():
     return mars_rover_photos()
 
+@app.get("recipe")
+async def get_all_recipes(db:Session = Depends(get_db)):
+    pass
 
 @app.get("/random-recipe")
 def get_random_recipe(db:Session = Depends(get_db)):

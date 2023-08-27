@@ -17,16 +17,18 @@ def get_user_by_email(db: Session, email: str):
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.User).offset(skip).limit(limit).all()
-
+    return db.query(models.User).offset(skip).limit(limit).all() 
+  
 
 def get_notes(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Note).offset(skip).limit(limit).all()
 
 
+def get_all_recipes(db:Session, recipe: schemas.RecipeGet):
+    return db.query(models.Recipe).all()
+
 def get_recipe(db: Session, recipe: schemas.RecipeGet):
 
-    print(models.Recipe.recipeId)
     return (
         db.query(models.Recipe)
         .filter(models.Recipe.recipeId == int(recipe["meals"][0]["idMeal"]))
