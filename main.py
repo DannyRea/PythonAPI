@@ -11,17 +11,17 @@ from nasa.main import apod, mars_rover_photos
 from meal.main import random_meal
 
 app = FastAPI()
-sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
-sio.transports = ["websocket", "polling", "flashsocket"]
+origins = "*"
+sio = socketio.AsyncServer(cors_allowed_origins=origins, async_mode="asgi")
 
 socket_app = socketio.ASGIApp(sio)
-app.mount("/", socket_app)
+
 background_task_started = False
-origins = ["*"]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,7 +41,7 @@ async def background_task():
 
 @sio.on("connect")
 def connect(sid, data):
-    print("connected")
+    print(sid, "connected")
 
 
 @sio.on("disconnect")
@@ -124,11 +124,13 @@ def get_mars_rover_photos():
     return mars_rover_photos()
 
 
+@app.route("/recipes")
 @app.get("/recipes")
 async def get_all_recipes(db: Session = Depends(get_db)):
     return crud.get_all_recipes(db=db)
 
 
+@app.route("/random-recipe")
 @app.get("/random-recipe")
 def get_random_recipe(db: Session = Depends(get_db)):
     random_recipe = random_meal()
@@ -139,18 +141,22 @@ def get_random_recipe(db: Session = Depends(get_db)):
     return random_recipe
 
 
+@app.route("/random-recipe")
 @app.post("/random-recipe", response_model=schemas.RecipeCreate)
 async def create_recipe(recipe: schemas.RecipeCreate, db: Session = Depends(get_db)):
     db_recipe = await crud.create_recipe(db=db, recipe=recipe)
     return db_recipe
 
 
+@app.route("/recipes/{id}")
 @app.delete("/recipes/{id}")
 def delete_recipe(id, db: Session = Depends(get_db)):
     print("id", id)
+    sio.emit("recipes", {"data: id"})
     return crud.delete_recipe(db=db, id=id)
 
 
+app.mount("/", socket_app)
 # @app.patch("/notes/{id}", response_model=schemas.NotePatch)
 # def patch_note(id: int, note: schemas.NotePatch):
 #     stored_data = note.dict()
