@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from . import models, schemas
+from utils.recipe import format_recipe
 import json
 
 
@@ -24,8 +25,11 @@ def get_notes(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Note).offset(skip).limit(limit).all()
 
 
-def get_all_recipes(db:Session, recipe: schemas.RecipeGet):
-    return db.query(models.Recipe).all()
+def get_all_recipes(db:Session):
+    all_recipes = db.query(models.Recipe).all()
+
+    formatted_recipes = [format_recipe(recipe) for recipe in all_recipes ]
+    return formatted_recipes or []
 
 def get_recipe(db: Session, recipe: schemas.RecipeGet):
 
@@ -64,7 +68,6 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
     measurements_dict_str = json.dumps(
         {key: value for (key, value) in meal.items() if "Measure" in key}
     )
-    print()
 
     db_recipe = models.Recipe(
         recipeId=int(meal["idMeal"]),
@@ -78,4 +81,11 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
     db.add(db_recipe)
     db.commit()
     db.refresh(db_recipe)
+    return db_recipe
+
+def delete_recipe(db: Session, id: int):
+    db_recipe = db.query(models.Recipe).filter(models.Recipe.id == id).first()
+    if db_recipe:
+        db.delete(db_recipe)
+        db.commit()
     return db_recipe

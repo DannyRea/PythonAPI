@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
+import socketio
+from fastapi_socketio import SocketManager
 from sqlalchemy.orm import Session
-import asyncio
 from sql_app import schemas, crud
 from sql_app.models import Base
 from sql_app.database import Base, SessionLocal, engine
@@ -10,6 +11,12 @@ from nasa.main import apod, mars_rover_photos
 from meal.main import random_meal
 
 app = FastAPI()
+sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
+sio.transports = ["websocket", "polling", "flashsocket"]
+
+socket_app = socketio.ASGIApp(sio)
+app.mount("/", socket_app)
+background_task_started = False
 origins = ["*"]
 
 app.add_middleware(
@@ -21,6 +28,25 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+
+
+async def background_task():
+    """Example of how to send server generated events to clients."""
+    count = 0
+    while True:
+        await sio.sleep(10)
+        count += 1
+        await sio.emit("my_response", {"data": "Server generated event"})
+
+
+@sio.on("connect")
+def connect(sid, data):
+    print("connected")
+
+
+@sio.on("disconnect")
+def disconnect(sid, data):
+    print("disconnected")
 
 
 # Dependency
@@ -80,7 +106,6 @@ def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
 
 @app.patch("/notes/{id}", response_model=schemas.NotePatch)
 def patch_note(id: str, note: schemas.NotePatch, db: Session = Depends(get_db)):
-    print("here")
     stored_note_data = crud.get_note(db=db, id=id)
 
     update_data = note.dict()
@@ -98,25 +123,34 @@ def get_apod_image():
 def get_mars_rover_photos():
     return mars_rover_photos()
 
-@app.get("recipe")
-async def get_all_recipes(db:Session = Depends(get_db)):
-    pass
+
+@app.get("/recipes")
+async def get_all_recipes(db: Session = Depends(get_db)):
+    return crud.get_all_recipes(db=db)
+
 
 @app.get("/random-recipe")
-def get_random_recipe(db:Session = Depends(get_db)):
+def get_random_recipe(db: Session = Depends(get_db)):
     random_recipe = random_meal()
-    print(random_recipe)
     db_recipe = crud.get_recipe(db=db, recipe=random_recipe)
-   
+
     if not db_recipe:
         db_recipe = crud.create_recipe(db, random_recipe)
     return random_recipe
 
 
 @app.post("/random-recipe", response_model=schemas.RecipeCreate)
-async def create_recipe(recipe: schemas.RecipeCreate, db:Session = Depends(get_db)):
+async def create_recipe(recipe: schemas.RecipeCreate, db: Session = Depends(get_db)):
     db_recipe = await crud.create_recipe(db=db, recipe=recipe)
     return db_recipe
+
+
+@app.delete("/recipes/{id}")
+def delete_recipe(id, db: Session = Depends(get_db)):
+    print("id", id)
+    return crud.delete_recipe(db=db, id=id)
+
+
 # @app.patch("/notes/{id}", response_model=schemas.NotePatch)
 # def patch_note(id: int, note: schemas.NotePatch):
 #     stored_data = note.dict()
