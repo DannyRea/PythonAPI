@@ -30,6 +30,9 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 
+connections = []
+
+
 async def background_task():
     """Example of how to send server generated events to clients."""
     count = 0
@@ -41,12 +44,12 @@ async def background_task():
 
 @sio.on("connect")
 def connect(sid, data):
-    print(sid, "connected")
+    connections.append(sid)
 
 
 @sio.on("disconnect")
 def disconnect(sid, data):
-    print("disconnected")
+    connections.pop(connections.index(sid))
 
 
 # Dependency
@@ -63,6 +66,7 @@ async def root():
     return {"message": "Hello World"}
 
 
+@app.route("/users")
 @app.post("/users", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
@@ -71,12 +75,14 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_user(db=db, user=user)
 
 
+@app.route("/users")
 @app.get("/users", response_model=list[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = crud.get_users(db, skip=skip, limit=limit)
     return users
 
 
+@app.route("/users/{user_id}")
 @app.get("/users/{user_id}", response_model=schemas.User)
 def read_user(user_id: int, db: Session = Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
@@ -85,11 +91,13 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     return db_user
 
 
+@app.route("/notes")
 @app.get("/notes", response_model=list[schemas.NoteGet])
 def read_notes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_notes(db, skip=skip, limit=limit)
 
 
+@app.route("/notes/{id}")
 @app.get("/notes/{id}", response_model=schemas.NoteGet)
 def read_note(id: int, db: Session = Depends(get_db)):
     db_note = crud.get_note(db, id=id)
@@ -98,12 +106,14 @@ def read_note(id: int, db: Session = Depends(get_db)):
     return db_note
 
 
+@app.route("/notes")
 @app.post("/notes", response_model=schemas.NoteCreate)
 def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
     response = crud.create_note(db=db, note=note)
     return response
 
 
+@app.route("/notes/{id}")
 @app.patch("/notes/{id}", response_model=schemas.NotePatch)
 def patch_note(id: str, note: schemas.NotePatch, db: Session = Depends(get_db)):
     stored_note_data = crud.get_note(db=db, id=id)
@@ -114,11 +124,13 @@ def patch_note(id: str, note: schemas.NotePatch, db: Session = Depends(get_db)):
     return update_data
 
 
+@app.route("/apod")
 @app.get("/apod")
 def get_apod_image():
     return apod()
 
 
+@app.route("/mars-rover-photos")
 @app.get("/mars-rover-photos")
 def get_mars_rover_photos():
     return mars_rover_photos()
@@ -132,12 +144,14 @@ async def get_all_recipes(db: Session = Depends(get_db)):
 
 @app.route("/random-recipe")
 @app.get("/random-recipe")
-def get_random_recipe(db: Session = Depends(get_db)):
+async def get_random_recipe(db: Session = Depends(get_db)):
     random_recipe = random_meal()
     db_recipe = crud.get_recipe(db=db, recipe=random_recipe)
 
     if not db_recipe:
         db_recipe = crud.create_recipe(db, random_recipe)
+        print("hjere")
+        await sio.emit("recipes", {"data": await get_all_recipes(db=db)})
     return random_recipe
 
 
@@ -150,10 +164,10 @@ async def create_recipe(recipe: schemas.RecipeCreate, db: Session = Depends(get_
 
 @app.route("/recipes/{id}")
 @app.delete("/recipes/{id}")
-def delete_recipe(id, db: Session = Depends(get_db)):
-    print("id", id)
-    sio.emit("recipes", {"data: id"})
-    return crud.delete_recipe(db=db, id=id)
+async def delete_recipe(id, db: Session = Depends(get_db)):
+    result = crud.delete_recipe(db=db, id=id)
+    await sio.emit("recipes", {"data": await get_all_recipes(db=db)})
+    return result
 
 
 app.mount("/", socket_app)
