@@ -13,6 +13,11 @@ class RecipeBase(BaseModel):
     recipeId: int
 
 
+class CalenderEventBase(BaseModel):
+    id: int
+    removed: str
+
+
 class NoteGet(NoteBase):
     id: int
     cardTitle: str
@@ -75,3 +80,14 @@ class RecipeCreate(RecipeBase):
     ingredients: str
     measurements: str
     directions: str
+
+
+class CalenderEventGet(CalenderEventBase):
+    eventTitle: str
+    eventTimeStart: str
+    eventTimeEnd: str
+    eventDateStart: str
+    eventDateEnd: str
+    eventBody: str
+    createdTime: str
+    createdDate: str
