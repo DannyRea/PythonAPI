@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from utils.recipe import format_recipe
+from utils.dateutils import database_date
+from utils.timeutils import database_time
 import json
 
 
@@ -18,21 +20,21 @@ def get_user_by_email(db: Session, email: str):
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.User).offset(skip).limit(limit).all() 
-  
+    return db.query(models.User).offset(skip).limit(limit).all()
+
 
 def get_notes(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Note).offset(skip).limit(limit).all()
 
 
-def get_all_recipes(db:Session):
+def get_all_recipes(db: Session):
     all_recipes = db.query(models.Recipe).all()
 
-    formatted_recipes = [format_recipe(recipe) for recipe in all_recipes ]
+    formatted_recipes = [format_recipe(recipe) for recipe in all_recipes]
     return formatted_recipes or []
 
-def get_recipe(db: Session, recipe: schemas.RecipeGet):
 
+def get_recipe(db: Session, recipe: schemas.RecipeGet):
     return (
         db.query(models.Recipe)
         .filter(models.Recipe.recipeId == int(recipe["meals"][0]["idMeal"]))
@@ -82,6 +84,29 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
     db.commit()
     db.refresh(db_recipe)
     return db_recipe
+
+
+def create_event(db: Session, event: schemas.CalenderEventCreate):
+    db_event = models.CalenderEvent(
+        eventTitle=event["eventTitle"],
+        eventTimeStart=event["eventTimeStart"],
+        eventTimeEnd=event["eventTimeEnd"],
+        eventDateStart=event["eventDateStart"],
+        eventDateEnd=event["eventDateEnd"],
+        eventBody=event["eventBody"],
+        createdTime=database_time(),
+        createdDate=database_date(),
+    )
+    print("db_event", db_event)
+    db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+    return db_event
+
+
+def get_events(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.CalenderEvent).offset(skip).limit(limit).all()
+
 
 def delete_recipe(db: Session, id: int):
     db_recipe = db.query(models.Recipe).filter(models.Recipe.id == id).first()

@@ -1,13 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from broadcaster import Broadcast
+from config import settings
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:555435@192.168.0.13:5432"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL
-)
+engine = create_engine(settings.settings.SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-print('creating Base')
+print("creating Base")
 Base = declarative_base()
-print(Base)
+
+broadcast = Broadcast(settings.settings.SQLALCHEMY_DATABASE_URL)

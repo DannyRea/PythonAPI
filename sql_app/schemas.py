@@ -20,10 +20,8 @@ class CalenderEventBase(BaseModel):
 
 class NoteGet(NoteBase):
     id: int
-    cardTitle: str
-    cardBody: str
-    x: int
-    y: int
+    noteTitle: str
+    noteBody: str
 
     class Config:
         orm_mode = True
@@ -83,6 +81,15 @@ class RecipeCreate(RecipeBase):
 
 
 class CalenderEventGet(CalenderEventBase):
+    eventTitle: str
+    eventTimeStart: str
+    eventTimeEnd: str
+    eventDateStart: str
+    eventDateEnd: str
+    eventBody: str
+
+
+class CalenderEventCreate(CalenderEventBase):
     eventTitle: str
     eventTimeStart: str
     eventTimeEnd: str

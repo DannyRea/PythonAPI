@@ -9,12 +9,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 from nasa.main import apod, mars_rover_photos
 from meal.main import random_meal
+from sqlalchemy import inspect
+from channels import setupChannels
+from broadcaster import Broadcast
+from config import settings
+
+
+broadcast = Broadcast(settings.settings.SQLALCHEMY_DATABASE_URL)
 
 app = FastAPI()
 origins = "*"
 sio = socketio.AsyncServer(cors_allowed_origins=origins, async_mode="asgi")
 
-socket_app = socketio.ASGIApp(sio)
+socket_app = socketio.ASGIApp(
+    sio, on_startup=[broadcast.connect], on_shutdown=[broadcast.disconnect]
+)
+
 
 background_task_started = False
 
@@ -31,6 +41,23 @@ Base.metadata.create_all(bind=engine)
 
 
 connections = []
+
+
+# inspector = inspect(engine)
+
+# schemas_list = inspector.get_schema_names()
+
+
+# for schema in schemas_list:
+#     for table_name in inspector.get_table_names(schema=schema):
+#         print(table_name)
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 async def background_task():
@@ -52,13 +79,19 @@ def disconnect(sid, data):
     connections.pop(connections.index(sid))
 
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def recipe_on_change(db: Session = Depends(get_db)):
+    print("triggered db_recipe channel")
+    await sio.emit("recipeEntities", {"data": crud.get_all_recipes(db=db)})
+
+
+async def note_on_change(db: Session = Depends(get_db)):
+    print("triggered db_note channel")
+    await sio.emit("noteEntities", {"data": await read_notes(db=db)})
+
+
+async def event_on_change(db: Session = Depends(get_db)):
+    print("triggered db_event channel")
+    await sio.emit("eventEntities", {"data": await get_events(db=db)})
 
 
 @app.get("/")
@@ -83,7 +116,10 @@ def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 
 
 @app.route("/users/{user_id}")
-@app.get("/users/{user_id}", response_model=schemas.User)
+@app.get(
+    "/users/{user_id}",
+    response_model=schemas.User,
+)
 def read_user(user_id: int, db: Session = Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
@@ -108,20 +144,36 @@ def read_note(id: int, db: Session = Depends(get_db)):
 
 @app.route("/notes")
 @app.post("/notes", response_model=schemas.NoteCreate)
-def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
+async def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
     response = crud.create_note(db=db, note=note)
+    await note_on_change(db=db)
     return response
 
 
 @app.route("/notes/{id}")
 @app.patch("/notes/{id}", response_model=schemas.NotePatch)
-def patch_note(id: str, note: schemas.NotePatch, db: Session = Depends(get_db)):
+async def patch_note(id: str, note: schemas.NotePatch, db: Session = Depends(get_db)):
     stored_note_data = crud.get_note(db=db, id=id)
-
     update_data = note.dict()
     stored_note_data.id = update_data
-
+    await note_on_change(db=db)
     return update_data
+
+
+@app.route("/event")
+@app.post("/event", response_model=schemas.CalenderEventCreate)
+async def create_event(
+    event: schemas.CalenderEventCreate, db: Session = Depends(get_db)
+):
+    print("event", event)
+    crud.create_event(db, event)
+    await event_on_change(db=db)
+
+
+@app.route("/event")
+@app.get("/event", response_model=schemas.CalenderEventGet)
+async def get_events(event: schemas.CalenderEventGet, db: Session = Depends(get_db)):
+    return await crud.get_events(db=db)
 
 
 @app.route("/apod")
@@ -147,11 +199,9 @@ async def get_all_recipes(db: Session = Depends(get_db)):
 async def get_random_recipe(db: Session = Depends(get_db)):
     random_recipe = random_meal()
     db_recipe = crud.get_recipe(db=db, recipe=random_recipe)
-
     if not db_recipe:
         db_recipe = crud.create_recipe(db, random_recipe)
-        print("hjere")
-        await sio.emit("recipes", {"data": await get_all_recipes(db=db)})
+        await recipe_on_change(db=db)
     return random_recipe
 
 
@@ -166,7 +216,7 @@ async def create_recipe(recipe: schemas.RecipeCreate, db: Session = Depends(get_
 @app.delete("/recipes/{id}")
 async def delete_recipe(id, db: Session = Depends(get_db)):
     result = crud.delete_recipe(db=db, id=id)
-    await sio.emit("recipes", {"data": await get_all_recipes(db=db)})
+    await recipe_on_change(db=db)
     return result
 
 
